@@ -1,0 +1,21 @@
+{
+  "name": "webhook-management-platform",
+  "version": "0.1.0",
+  "description": "Reliable webhook infrastructure for SaaS teams",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*",
+    "worker"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "worker": "cd worker && npm run start"
+  },
+  "devDependencies": {
+    "turbo": "^1.12.0",
+    "typescript": "^5.3.0"
+  }
+}

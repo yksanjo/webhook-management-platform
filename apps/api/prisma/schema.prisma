@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  apiKey    String   @unique
+  plan      String   @default("free")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  webhooks  Webhook[]
+  events    Event[]
+  deliveries Delivery[]
+}
+
+model Webhook {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  // Endpoint configuration
+  url            String
+  secret         String       // For HMAC signature
+  description    String?
+  
+  // Event filtering
+  eventTypes     String[]     // ["user.created", "order.paid"]
+  
+  // Retry configuration
+  maxRetries     Int          @default(5)
+  retryDelay     Int          @default(1000) // Initial delay in ms
+  
+  // Status
+  enabled        Boolean      @default(true)
+  lastDeliveredAt DateTime?
+  lastFailedAt   DateTime?
+  failureCount   Int          @default(0)
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  deliveries     Delivery[]
+
+  @@index([organizationId])
+  @@index([enabled])
+}
+
+model Event {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  eventType      String
+  payload        Json
+  
+  // Delivery tracking
+  targetCount    Int          @default(0)
+  deliveredCount Int          @default(0)
+  failedCount    Int          @default(0)
+  
+  createdAt      DateTime     @default(now())
+
+  deliveries     Delivery[]
+
+  @@index([organizationId, eventType])
+  @@index([createdAt])
+}
+
+model Delivery {
+  id          String   @id @default(cuid())
+  
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id])
+  
+  webhookId   String
+  webhook     Webhook  @relation(fields: [webhookId], references: [id])
+  
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  
+  // Delivery status
+  status      String   @default("pending") // pending, delivered, failed
+  attemptCount Int     @default(0)
+  
+  // Request/Response
+  requestBody    Json?
+  responseStatus Int?
+  responseBody   String?
+  
+  // Timing
+  deliveredAt DateTime?
+  failedAt    DateTime?
+  nextAttemptAt DateTime?
+  
+  // Error tracking
+  errorMessage String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([webhookId, status])
+  @@index([eventId])
+  @@index([status, nextAttemptAt])
+}
